@@ -27,8 +27,8 @@ struct Image
 
 int g_gl_height = 1080;
 int g_gl_width = 1920;
-float offsetX = 0.01f;
-float offsetY = 0.01f;
+float offsetX = 0.00f;
+float offsetY = 0.00f;
 
 
 int loadTexture(unsigned int &texture, char *filename) {
@@ -108,8 +108,8 @@ vector<Image *> generateModel() {
     img0->offsetx = 0;
     img0->offsety = 0;
     img0->offsetz = -0.50;
-    img0->offsetXMultiple = 0.1; 
-    img0->offsetYMultiple = 0.1;
+    img0->offsetXMultiple = 0.9; 
+    img0->offsetYMultiple = 0.9;
     model.push_back(img0);
     loadTexture(img0->texture, img0->fileName);
 
@@ -118,8 +118,8 @@ vector<Image *> generateModel() {
     img2->offsetx = 0;
     img2->offsety = 0;
     img2->offsetz = -0.51;
-    img2->offsetXMultiple = 0.1; 
-    img2->offsetYMultiple = 0.1;
+    img2->offsetXMultiple = 0.8; 
+    img2->offsetYMultiple = 0.8;
     model.push_back(img2);
     loadTexture(img2->texture, img2->fileName);
 
@@ -128,8 +128,8 @@ vector<Image *> generateModel() {
     img3->offsetx = 0;
     img3->offsety = 0;
     img3->offsetz = -0.52;
-    img3->offsetXMultiple = 0.1; 
-    img3->offsetYMultiple = 0.1;
+    img3->offsetXMultiple = 0.7; 
+    img3->offsetYMultiple = 0.7;
     model.push_back(img3);
     loadTexture(img3->texture, img3->fileName);
 
@@ -139,8 +139,8 @@ vector<Image *> generateModel() {
     img8->offsetx = 0;
     img8->offsety = 0;
     img8->offsetz = -0.53;
-    img8->offsetXMultiple = 0.1; 
-    img8->offsetYMultiple = 0.1;
+    img8->offsetXMultiple = 0.6; 
+    img8->offsetYMultiple = 0.6;
     model.push_back(img8);
     loadTexture(img8->texture, img8->fileName);
 
@@ -149,8 +149,8 @@ vector<Image *> generateModel() {
     img7->offsetx = 0;
     img7->offsety = 0;
     img7->offsetz = -0.54;
-    img7->offsetXMultiple = 0.8; 
-    img7->offsetYMultiple = 0.8;
+    img7->offsetXMultiple = 0.5; 
+    img7->offsetYMultiple = 0.5;
     model.push_back(img7);
     loadTexture(img7->texture, img7->fileName);
 
@@ -159,8 +159,8 @@ vector<Image *> generateModel() {
     img6->offsetx = 0;
     img6->offsety = 0;
     img6->offsetz = -0.55;
-    img6->offsetXMultiple = 0.6; 
-    img6->offsetYMultiple = 0.6;
+    img6->offsetXMultiple = 0.4; 
+    img6->offsetYMultiple = 0.4;
     model.push_back(img6);
     loadTexture(img6->texture, img6->fileName);
 
@@ -169,8 +169,8 @@ vector<Image *> generateModel() {
     img5->offsetx = 0;
     img5->offsety = 0;
     img5->offsetz = -0.56;
-    img5->offsetXMultiple = 0.4; 
-    img5->offsetYMultiple = 0.4;
+    img5->offsetXMultiple = 0.3; 
+    img5->offsetYMultiple = 0.3;
     model.push_back(img5);
     loadTexture(img5->texture, img5->fileName);
 
@@ -268,6 +268,29 @@ int main() {
             
             model[i]->offsetx += model[i]->offsetXMultiple * offsetX;
             model[i]->offsety += model[i]->offsetYMultiple * offsetY;
+
+            cout << model[i]->offsetx << " : " << model[i]->offsety << endl;
+
+            // if (model[i]->offsetx > 0.2) {
+            //     model[i]->offsetx = 0.2;
+            //     offsetX = 0;
+            // }
+
+            // if (model[i]->offsetx < -0.2) {
+            //     model[i]->offsetx = -0.2;
+            //     offsetX = 0;
+            // }
+
+            if (model[i]->offsety > 0.1) {
+                model[i]->offsety = 0.1;
+                offsetY = 0;
+            }
+
+            if (model[i]->offsety < -0.4) {
+                model[i]->offsety = -0.4;
+                offsetY = 0;
+            }
+            
 	        
             glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), model[i]->offsetx);
 			glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), model[i]->offsety);
@@ -283,10 +306,10 @@ int main() {
 			glfwSetWindowShouldClose(g_window, 1);
 		} 
         if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_UP)) {
-			offsetY += 0.001f;
+			offsetY -= 0.001f;
 	    } 
         if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_DOWN)) {
-			offsetY -= 0.001f;
+			offsetY += 0.001f;
 		} 
         if (GLFW_PRESS == glfwGetKey(g_window, GLFW_KEY_LEFT)) {
 			offsetX -= 0.001f;
