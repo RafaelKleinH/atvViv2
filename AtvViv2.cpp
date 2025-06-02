@@ -1,240 +1,262 @@
-
+#include "stb_image.h"
+#include "gl_utils.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include "stb_image.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include <string.h>
+#include <time.h>
+#define GL_LOG_FILE "gl.log"
+#include <iostream>
 #include <vector>
 
 using namespace std;
 
-const char *vertexShaderSource = "#version 410\n"
-                                "layout (location=0) in vec3 vp;" 
-                                "layout (location=1) in vec2 vt;" 
-                                "out vec2 text_map;"
-                                "void main () {"
-                                "   text_map = vt;"                  
-                                "	gl_Position = vec4 (vp, 1.0);" 
-                                "}";
+GLFWwindow *g_window = NULL;
 
-const char *fragmentShaderSource = "#version 410\n"
-                                    "in vec2 text_map;"
-                                    "uniform sampler2D basic_texture;"
-                                   "out vec4 frag_color;"
-                                   "void main () {"
-                                   "	 frag_color = texture(basic_texture, text_map);"
-                                   "}";
+int loadTexture(unsigned int &texture, char *filename)
+{
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-bool load_texture (const char* file_name, GLuint* tex, int index) {
-    int x, y, n;
-    int force_channels = 4;
-    glEnable(GL_TEXTURE_2D);
-
-    unsigned char* image_data = stbi_load (file_name, &x, &y, &n, force_channels);
-    if (!image_data) {
-        fprintf (stderr, "ERROR: could not load %s\n", file_name);
-        return false;
-    }
-
-    if ((x & (x - 1)) != 0 || (y & (y - 1)) != 0) {
-        fprintf (
-                 stderr, "WARNING: texture %s is not power-of-2 dimensions\n", file_name
-                 );
-    }
-    
-    glGenTextures (index, tex); // talvez vai ter mais
-    glActiveTexture (GL_TEXTURE0);
-    glBindTexture (GL_TEXTURE_2D, *tex);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
-    glGenerateMipmap (GL_TEXTURE_2D);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     GLfloat max_aniso = 0.0f;
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &max_aniso);
-    glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso);
-    return true;
+    // set the maximum!
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, max_aniso);
+
+    int width, height, nrChannels;
+
+    unsigned char *data = stbi_load(filename, &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        if (nrChannels == 4)
+        {
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        }
+        else
+        {
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        }
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    stbi_image_free(data);
 }
 
-struct Image {
+struct Image
+{
     int id;
-    GLuint VAO;
-    GLuint texture;
+    char *fileName;
+    unsigned int texture;
+    float offsetx, offsety, offsetz;
 };
 
-vector<Image> model;
- int HEIGHT = 600;
- int WIDTH = 800;
+int g_gl_height = 1080;
+int g_gl_width = 1920;
 
-float cursorX = 0;
-float cursorY = 0;
+int main()
+{
+
+    start_gl();
+
+    vector<Image *> model;
+
+    Image *img0 = new Image;
+    img0->fileName = "images/sky.png";
+    img0->offsetx = 0;
+    img0->offsety = 0;
+    img0->offsetz = -0.50;
+    model.push_back(img0);
+    loadTexture(img0->texture, img0->fileName);
+
+    Image *img2 = new Image;
+    img2->fileName = "images/clouds_1.png";
+    img2->offsetx = 0;
+    img2->offsety = 0;
+    img2->offsetz = -0.53;
+    model.push_back(img2);
+    loadTexture(img2->texture, img2->fileName);
+
+    Image *img3 = new Image;
+    img3->fileName = "images/clouds_2.png";
+    img3->offsetx = 0;
+    img3->offsety = 0;
+    img3->offsetz = -0.52;
+    model.push_back(img3);
+    loadTexture(img3->texture, img3->fileName);
 
 
-void macOSInit() {
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
-    glfwWindowHint(GLFW_SAMPLES, 4);
-}
+    Image *img8 = new Image;
+    img8->fileName = "images/rocks_3.png";
+    img8->offsetx = 0;
+    img8->offsety = 0;
+    img8->offsetz = -0.47;
+    model.push_back(img8);
+    loadTexture(img8->texture, img8->fileName);
 
-float generateRandomNumber() {
-    float randomNum = rand() % 101;
-    return randomNum / 100;
-}
+    Image *img7 = new Image;
+    img7->fileName = "images/rocks_2.png";
+    img7->offsetx = 0;
+    img7->offsety = 0;
+    img7->offsetz = -0.48;
+    model.push_back(img7);
+    loadTexture(img7->texture, img7->fileName);
 
-Image createBox(float x0, float y0, float x1, float y1, char * imageName, int index) {
+    Image *img6 = new Image;
+    img6->fileName = "images/rocks_1.png";
+    img6->offsetx = 0;
+    img6->offsety = 0;
+    img6->offsetz = -0.49;
+    model.push_back(img6);
+    loadTexture(img6->texture, img6->fileName);
 
-    GLfloat vertices[] = {
-        x0, y0, 0.0,
-        x1, y1, 0.0,
-        x0, y1, 0.0,
+    Image *img5 = new Image;
+    img5->fileName = "images/pines.png";
+    img5->offsetx = 0;
+    img5->offsety = 0;
+    img5->offsetz = -0.56;
+    model.push_back(img5);
+    loadTexture(img5->texture, img5->fileName);
 
-        x0, y0, 0.0,
-        x1, y1, 0.0,
-        x1, y0, 0.0,
+    Image *img4 = new Image;
+    img4->fileName = "images/clouds_3.png";
+    img4->offsetx = 0;
+    img4->offsety = 0;
+    img4->offsetz = -0.51;
+    model.push_back(img4);
+    loadTexture(img4->texture, img4->fileName);
+
+    Image *img1 = new Image;
+    img1->fileName = "images/birds.png";
+    img1->offsetx = 0;
+    img1->offsety = 0;
+    img1->offsetz = -0.51;
+    model.push_back(img1);
+    loadTexture(img1->texture, img1->fileName);
+
+
+
+    float vertices[] = {
+		1.0f, 0.727f, 1.0f, 0.0f,   // top right
+		1.0f, -0.727f, 1.0f, 1.0f,  // bottom right
+		-1.0f, -0.727f, 0.0f, 1.0f, // bottom left
+		-1.0f, 0.727f, 0.0f, 0.0f,  // top left
     };
 
-    GLfloat textureMap[] = {
-        0.0, 1.0,
-        1.0, 0.0,
-       0.0, 0.0,
-    
-        0.0, 1.0,
-        1.0, 0.0,
-        1.0, 1.0,
- 
- 
-        
+    unsigned int indices[] = {
+        2, 1, 0,
+        0, 3, 2
     };
 
-    GLuint VAO, VBO, VBOTexture;
+    unsigned int VAO, VBO, EBO;
     glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
     glBindVertexArray(VAO);
 
-    glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
 
-    glGenBuffers(1, &VBOTexture);
-    glBindBuffer(GL_ARRAY_BUFFER, VBOTexture);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(textureMap), textureMap, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void *)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    GLuint tex;
-    load_texture(imageName, &tex, index);
 
-    Image model;
-    model.id = index;
-    model.VAO = VAO;
-    model.texture = tex;
-    return model;
-}
+    char vertex_shader[1024 * 256];
+    char fragment_shader[1024 * 256];
+    parse_file_into_str("vs.glsl", vertex_shader, 1024 * 256);
+    parse_file_into_str("fs.glsl", fragment_shader, 1024 * 256);
 
-void mouseButtonCallback(GLFWwindow *window, int button, int action, int mods) {
-    if (button == GLFW_KEY_UP && action == GLFW_PRESS)
+	GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+	const GLchar *p = (const GLchar *)vertex_shader;
+	glShaderSource(vs, 1, &p, NULL);
+	glCompileShader(vs);
+
+	// check for compile errors
+	int params = -1;
+	glGetShaderiv(vs, GL_COMPILE_STATUS, &params);
+	if (GL_TRUE != params)
+	{
+		fprintf(stderr, "ERROR: GL shader index %i did not compile\n", vs);
+		print_shader_info_log(vs);
+		return 1; // or exit or something
+	}
+
+	GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+	p = (const GLchar *)fragment_shader;
+	glShaderSource(fs, 1, &p, NULL);
+	glCompileShader(fs);
+
+	// check for compile errors
+	glGetShaderiv(fs, GL_COMPILE_STATUS, &params);
+	if (GL_TRUE != params)
+	{
+		fprintf(stderr, "ERROR: GL shader index %i did not compile\n", fs);
+		print_shader_info_log(fs);
+		return 1; // or exit or something
+	}
+
+	GLuint shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, fs);
+	glAttachShader(shaderProgram, vs);
+	glLinkProgram(shaderProgram);
+
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &params);
+	if (GL_TRUE != params)
+	{
+		fprintf(stderr, "ERROR: could not link shader programme GL index %i\n",
+				shaderProgram);
+		// 		print_programme_info_log( shader_programme );
+		return false;
+	}
+
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    while (!glfwWindowShouldClose(g_window))
     {
-      
-    }
-}
 
-void cursorPositionCallback(GLFWwindow *window, double xPos, double yPos) {
-    float oldRangeX = (WIDTH - 0);
-    float newRangeX = (1 - (-1));
-    float newValueX = (((xPos - 0) * newRangeX) / oldRangeX) + (-1);
-
-    float oldRangeY = (HEIGHT - 0);
-    float newRangeY = (1 - (-1));
-    float newValueY = ((((HEIGHT - yPos) - 0) * newRangeY) / oldRangeY) + (-1);
-
-    if (newValueX < -1) {
-        cursorX = -1; 
-    } else if (newValueX > 1) {
-        cursorX = 1;
-    } else {
-        cursorX = newValueX;
-    }
-
-        if (newValueY < -1) {
-        cursorY = -1; 
-    } else if (newValueY > 1) {
-        cursorY = 1;
-    } else {
-        cursorY = newValueY;
-    }
-}
-
-int main() {
-
-    glfwInit();
-    macOSInit();
-
-    GLFWwindow *window = glfwCreateWindow(WIDTH, HEIGHT, "Triangulo 3 o inimigo agora são as cores", NULL, NULL);
-    if (window == NULL)
-    {
-        fprintf(stderr, "*** ERRO: não foi possível abrir janela com a GLFW\n");
-        glfwTerminate();
-        return 1;
-    }
-    glfwMakeContextCurrent(window);
-
-    glewExperimental = GL_TRUE;
-    glewInit();
-
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);   
-    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL); 
-    glCompileShader(vertexShader);                            
-
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-    glCompileShader(fragmentShader);
-
-    GLuint shaderProgram = glCreateProgram(); 
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-
-    glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glfwSwapBuffers(window);
-
-    Image image = createBox(-1.0, -1.0, 0.0, 0.0, "teste.jpeg", 0);
-    Image image2 = createBox(0.0, 0.0, 1.0, 1.0, "teste2.jpeg", 1);
-    model.push_back(image);
-     model.push_back(image2);
-
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-        glfwGetWindowSize(window, &WIDTH, &HEIGHT);
-        glViewport(0, 0, WIDTH, HEIGHT);
-
-        glClearColor(0.8f, 0.8f, 0.8f, 1.0f);
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glViewport(0, 0, g_gl_width, g_gl_height);
+
         glUseProgram(shaderProgram);
+        glBindVertexArray(VAO);
 
-        for (int i = 0; i < model.size(); i++) {
+        for (int i = 0; i < model.size(); i++)
+        {
+	        
+            glUniform1f(glGetUniformLocation(shaderProgram, "offsetx"), model[i]->offsetx);
+			glUniform1f(glGetUniformLocation(shaderProgram, "offsety"), model[i]->offsety);
+			glUniform1f(glGetUniformLocation(shaderProgram, "layer_z"), model[i]->offsetz);
 
-              glBindVertexArray( model[i].VAO );
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, model[i].texture);
-        glUniform1i(glGetUniformLocation(shaderProgram, "basic_texture"), model[i].id);
-        glDrawArrays( GL_TRIANGLES, 0, 6);
-        glBindVertexArray( 0 );
-            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, model[i]->texture);
+            glUniform1i(glGetUniformLocation(shaderProgram, "sprite"), 0);
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
         }
-        glfwSwapBuffers(window);
+        glfwPollEvents();
 
+        glfwSwapBuffers(g_window);
     }
-     glDeleteProgram(shaderProgram);
+    glDeleteProgram(shaderProgram);
 
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(g_window);
     glfwTerminate();
     return 0;
 }
